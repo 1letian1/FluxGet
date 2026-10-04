@@ -1,6 +1,6 @@
 # SQLite 数据模型基线
 
-数据库位置：`%LOCALAPPDATA%\UniversalDownloader\downloader.db`（非 Windows 开发环境使用用户数据目录）。使用 SQLite；异步访问使用 aiosqlite。时间统一存为 UTC ISO-8601 字符串。主键任务/规则使用 UUID 字符串或稳定字符串 ID；实际建表时统一一种格式。通过 `PRAGMA user_version` 进行递增迁移；当前 schema 为版本 1。启动时创建同级 `logs/` 和 `cache/` 目录。
+数据库位置：`%LOCALAPPDATA%\UniversalDownloader\downloader.db`（非 Windows 开发环境使用用户数据目录）。使用 SQLite；异步访问使用 aiosqlite。时间统一存为 UTC ISO-8601 字符串。主键任务/规则使用 UUID 字符串或稳定字符串 ID；实际建表时统一一种格式。通过 `PRAGMA user_version` 进行递增迁移；当前 schema 为版本 3。启动时创建同级 `logs/` 和 `cache/` 目录。
 
 ## 1. `settings`
 
@@ -42,6 +42,8 @@
 | `url` | TEXT NOT NULL | 已验证 URL |
 | `filename` | TEXT NOT NULL | 安全化文件名 |
 | `output_dir` | TEXT NOT NULL | 解析出的目标目录 |
+| `output_root` | TEXT NOT NULL | 用户选择的下载根目录，用于每次执行时重新验证包含关系 |
+| `subdir` | TEXT NOT NULL | 相对下载根目录的安全子目录 |
 | `temp_path` | TEXT NOT NULL | `.part` 路径 |
 | `source_type` | TEXT enum | `direct` / `rule` |
 | `rule_id` | TEXT NULL | 来源规则，删除规则不删除历史任务 |
@@ -50,6 +52,7 @@
 | `bytes_downloaded` | INTEGER NOT NULL DEFAULT 0 | 当前 `.part` 字节数 |
 | `retry_count` | INTEGER NOT NULL DEFAULT 0 | 自动重试已用次数 |
 | `max_retries` | INTEGER NOT NULL | 创建时快照 |
+| `conflict_policy` | TEXT enum | 创建时设置快照；`overwrite` / `rename` / `skip` / `ask` |
 | `error_code`,`error_message` | TEXT NULL | 可读错误摘要 |
 | `created_at`,`updated_at`,`started_at`,`finished_at` | TEXT | UTC；后两者可空 |
 

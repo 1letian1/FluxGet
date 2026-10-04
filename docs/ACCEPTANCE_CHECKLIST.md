@@ -86,3 +86,16 @@
 - [ ] Preview 与 TaskFactory 共用 Renderer 结果，生成的 URL/文件名一致
 - [ ] Jenkins HPI 默认 base_url 未配置时不臆造地址，预览明确提示错误
 - [ ] 原始 HPI 输入兼容性待取得旧程序样例后验证
+
+## DEV-13–23：DownloadManager 与传输链路
+
+- [ ] Task Repository、状态机和 schema v1→v3 迁移通过持久化/恢复验收
+- [ ] 并发 1–32 动态限制正确，任务创建后异步进入队列
+- [ ] HTTP 响应写入 `.part`，完成后原子替换目标文件
+- [ ] Range 206 续传、Range 被忽略时重写、无 Content-Length 均通过本地 HTTP 验收
+- [ ] 超时/连接中断及指定 5xx 按次数和 1/2/4 秒退避；普通 4xx 不重试
+- [ ] 取消会关闭传输、保留部分文件并进入 cancelled
+- [ ] overwrite、rename、skip、ask 及下载期间目标冲突均正确；waiting_user 不占槽
+- [ ] 根目录/子目录/文件名校验阻止路径穿越及 Windows 保留名
+- [ ] WebSocket Token 认证、事件类型和进度节流通过集成验收
+- [ ] 应用关闭与异常重启后任务状态及 `.part` 大小一致并可续传

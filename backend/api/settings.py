@@ -63,4 +63,11 @@ async def get_settings(request: Request) -> SettingsResponse:
 async def update_settings(payload: SettingsUpdate, request: Request) -> SettingsResponse:
     settings = AppSettings(**payload.model_dump())
     saved = await _service(request).update(settings)
+    manager = getattr(request.app.state, "download_manager", None)
+    if manager is not None:
+        await manager.configure(
+            concurrency=saved.concurrency,
+            max_retries=saved.max_retries,
+            conflict_policy=saved.conflict_policy,
+        )
     return SettingsResponse(**saved.__dict__)

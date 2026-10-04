@@ -8,7 +8,7 @@ from pathlib import Path
 import aiosqlite
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 
 
 def default_data_dir() -> Path:
@@ -62,7 +62,14 @@ class Database:
                 )
             if version < 1:
                 await self._migrate_to_v1(connection)
-                await connection.execute("PRAGMA user_version = 1")
+                version = 1
+            if version < 2:
+                await self._migrate_to_v2(connection)
+                version = 2
+            if version < 3:
+                await self._migrate_to_v3(connection)
+                version = 3
+            await connection.execute(f"PRAGMA user_version = {version}")
             await connection.commit()
 
     @staticmethod
@@ -130,3 +137,16 @@ class Database:
             WHERE status IN ('completed', 'failed', 'cancelled', 'skipped');
             """
         )
+
+    @staticmethod
+    async def _migrate_to_v2(connection: aiosqlite.Connection) -> None:
+        await connection.execute(
+            """ALTER TABLE download_tasks ADD COLUMN conflict_policy TEXT NOT NULL DEFAULT 'ask'
+               CHECK (conflict_policy IN ('overwrite', 'rename', 'skip', 'ask'))"""
+        )
+
+    @staticmethod
+    async def _migrate_to_v3(connection: aiosqlite.Connection) -> None:
+        await connection.execute("ALTER TABLE download_tasks ADD COLUMN output_root TEXT NOT NULL DEFAULT ''")
+        await connection.execute("ALTER TABLE download_tasks ADD COLUMN subdir TEXT NOT NULL DEFAULT ''")
+        await connection.execute("UPDATE download_tasks SET output_root = output_dir WHERE output_root = ''")

@@ -12,6 +12,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from backend.api.settings import router as settings_router
+from backend.api.tasks import events_router, router as tasks_router
+from backend.download.manager import DownloadManager
+from backend.download.repository import TaskRepository
 from backend.persistence.database import Database
 from backend.persistence.settings import SettingsRepository, SettingsService
 
@@ -69,16 +72,27 @@ def create_app(
         await database.initialize()
         repository = SettingsRepository(database)
         await repository.ensure_defaults()
+        settings = await repository.get()
+        download_manager = DownloadManager(
+            TaskRepository(database), concurrency=settings.concurrency,
+            max_retries=settings.max_retries, conflict_policy=settings.conflict_policy,
+        )
+        await download_manager.start()
         api.state.database = database
         api.state.settings_service = SettingsService(repository)
+        api.state.download_manager = download_manager
         try:
             yield
         finally:
+            await download_manager.close()
+            api.state.download_manager = None
             api.state.settings_service = None
             api.state.database = None
 
     api = FastAPI(title="Universal Downloader API", version="0.1.0", lifespan=lifespan)
     api.include_router(settings_router)
+    api.include_router(tasks_router)
+    api.include_router(events_router)
 
     @api.get("/api/v1/health", tags=["health"])
     async def health() -> dict[str, str]:

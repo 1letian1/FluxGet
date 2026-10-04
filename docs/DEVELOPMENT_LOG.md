@@ -65,3 +65,13 @@
 - URL 与文件名预览只由同一个 Renderer 生成；任务输入从 Preview 结果构造。校验拒绝未知占位符、非 HTTP(S) URL、URL 凭据及 Windows 不安全文件名。
 - Jenkins HPI 规则模板已提供，但 `base_url` 保持未配置，不臆造默认站点地址。
 - 验收状态：实现及规格记录完成；本轮未运行测试。规则 CRUD/SQLite 读写和预览 HTTP API 属于 DEV-11，尚未实现。
+
+## DEV-13–23：DownloadManager、调度与传输链路
+
+- 新增 `DownloadTask` 模型、SQLite Repository 和状态机；数据库 schema 从 v1 迁移到 v3，为任务保存创建时的冲突策略快照及根目录/相对子目录，并在启动时把中断中的下载恢复为 pending、按 `.part` 实际大小校准进度。
+- 新增异步 DownloadManager：复用 `httpx.AsyncClient`，使用 asyncio 队列和 32 个轻量协程 Worker，通过可配置并发门限制实际下载数；支持设置变更后动态调整并发。
+- 增加直链/规则任务创建、活动任务列表、取消、单项/批量重试与冲突决议 API。规则任务创建读取已保存规则，并复用 RuleEngine 预览结果。
+- 下载先流式写入 `.part`，限制文件名/相对目录并验证输出目录包含关系；支持 Range 续传、服务器忽略 Range 时重写、进度事件节流及完成后 `os.replace`。
+- 自动重试仅覆盖超时、连接中断和 HTTP 500/502/503/504，退避为 1/2/4 秒；用户取消保留部分文件。冲突支持 overwrite、rename、skip、ask，等待决议时释放并发槽。
+- 新增 EventBus 和受 Session Token 保护的 `/ws/events`，任务状态与进度通过事件推送；FastAPI lifespan 创建并关闭 DownloadManager，关闭期间活动任务恢复到 pending。
+- 本阶段做了 Python 语法编译检查（通过），未运行 pytest 或下载集成测试。Range、重试、冲突竞态、重启恢复、API/WS 和 Windows 文件行为仍需按 TEST_PLAN 实测；规则 CRUD/预览 API、完成队列清理和历史独立保留仍是后续工作。
