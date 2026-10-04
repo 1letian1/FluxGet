@@ -28,7 +28,7 @@ Router 负责解析、验证请求、调用服务和返回 DTO，不直接执行
 
 ## 3. 进程与启动
 
-桌面主进程创建数据目录、日志及 SQLite，生成随机端口与仅当前实例有效的 Session Token，在后台线程运行 asyncio/FastAPI；FastAPI 绑定 `127.0.0.1:<random-port>`。应用等待 `/api/v1/health` 成功后启动无边框 pywebview 并加载本地 Vue 构建产物。前端请求携带 Token。关闭流程停止新任务、通知/取消 Worker、关闭响应流、保留 `.part`、提交数据库、关闭 HTTP 客户端与 Uvicorn，等待后台线程后销毁窗口。
+桌面主进程创建数据目录、日志及 SQLite，生成随机端口与仅当前实例有效的 Session Token，在后台线程运行 asyncio/FastAPI；FastAPI lifespan 初始化 SQLite schema 和默认设置，再绑定 `127.0.0.1:<random-port>`。应用等待 `/api/v1/health` 成功后启动无边框 pywebview 并加载本地 Vue 构建产物。前端请求携带 Token。关闭流程停止新任务、通知/取消 Worker、关闭响应流、保留 `.part`、提交数据库、关闭 HTTP 客户端与 Uvicorn，等待后台线程后销毁窗口。
 
 ## 4. 下载数据流
 

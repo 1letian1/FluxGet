@@ -43,3 +43,17 @@
 - Native Bridge 提供运行时 API 凭据、原生文件夹选择、打开目录、最小化、最大化/还原和关闭；Vue 的对应按钮已接入桥接，浏览器预览时保留提示行为。窗口使用 pywebview 的 `easy_drag` 支持无边框拖动。
 - 本阶段仅建立启动/API/桥接骨架；任务 API、数据库初始化、安全关闭时的下载任务协调仍按后续阶段实现。
 - 验收状态：本轮代码完成；需在可用 Windows 桌面会话中验证 pywebview 原生窗口及文件夹选择器。未将此类实机验收标记为通过。
+
+## DEV-08：SQLite
+
+- 新增 aiosqlite 数据库管理器，使用 Windows `%LOCALAPPDATA%\UniversalDownloader\downloader.db`（其他平台使用用户数据目录），首次启动创建 `logs/`、`cache/` 并通过 `PRAGMA user_version` 管理 schema v1。
+- 建立 `settings`、`rules`、`download_tasks` 表、任务索引，以及基于终态任务的 `download_history` 视图；加入字段约束和删除规则时解除任务外键的行为。
+- FastAPI lifespan 负责初始化数据库并预置默认设置，启动入口已连接到真实持久化层。
+- 验收状态：实现完成；本轮未运行测试，数据库迁移及恢复场景尚未验证。
+
+## DEV-09：Settings
+
+- 新增设置 Repository/Service 和受 Session Token 保护的 `GET/PUT /api/v1/settings`。
+- 默认值为用户 Downloads 目录、空子目录、并发 4、自动重试 3、冲突策略 `ask`、模式 `direct`；PUT 以完整对象写入并更新 UTC 时间。
+- 校验绝对输出目录、拒绝空路径/null byte/额外字段，并发范围 1–32、重试非负、冲突策略及模式枚举；数据库约束同步兜底。
+- 验收状态：实现完成；本轮未运行测试或做跨进程重启验证，前端设置页面尚未接入该 API，属于后续前后端联调阶段。

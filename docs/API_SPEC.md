@@ -35,6 +35,8 @@ API 版本前缀：`/api/v1`。除健康检查外，REST 请求必须携带当�
 
 列表接口需支持稳定分页（`limit`,`offset`）和明确排序；默认最新优先。直接任务请求建议 `{ "urls": "每行一个 URL", "output_dir": "...", "subdir": "" }`。规则任务请求包含 `rule_id`、批量输入及输出设置。规则字段详见 `RULE_SPEC.md`。设置字段详见 `DATABASE_SCHEMA.md`。具体 Pydantic DTO 在 DEV-07 实现时按此合同定义。
 
+设置接口目前按完整对象读写：字段为 `output_dir`、`subdir`、`concurrency`、`max_retries`、`conflict_policy` 和 `current_mode`；响应附带 UTC `updated_at`。缺失字段、额外字段及超出约束的值均拒绝。
+
 ## 3. 任务控制语义
 
 - Cancel 对 pending/downloading 生效；终态取消请求返回 409 或幂等当前状态，具体统一在实现阶段选定并保持一致。
@@ -51,4 +53,3 @@ API 版本前缀：`/api/v1`。除健康检查外，REST 请求必须携带当�
 ## 5. 尚未冻结的细节
 
 批量输入字段的最终 JSON 形状、历史 DTO 保留字段/保留期限、日志导出目标路径选择交互以及 WebSocket Token 的传递载体将在 DEV-07/API 实现前结合 Native Bridge 确定；不得改变上述资源、行为和安全边界。
-

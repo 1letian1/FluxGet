@@ -1,6 +1,6 @@
 # SQLite 数据模型基线
 
-数据库位置：`%LOCALAPPDATA%\UniversalDownloader\downloader.db`。使用 SQLite；异步访问使用 aiosqlite。时间统一存为 UTC ISO-8601 字符串。主键任务/规则使用 UUID 字符串或稳定字符串 ID；实际建表时统一一种格式。
+数据库位置：`%LOCALAPPDATA%\UniversalDownloader\downloader.db`（非 Windows 开发环境使用用户数据目录）。使用 SQLite；异步访问使用 aiosqlite。时间统一存为 UTC ISO-8601 字符串。主键任务/规则使用 UUID 字符串或稳定字符串 ID；实际建表时统一一种格式。通过 `PRAGMA user_version` 进行递增迁移；当前 schema 为版本 1。启动时创建同级 `logs/` 和 `cache/` 目录。
 
 ## 1. `settings`
 
@@ -57,7 +57,13 @@
 
 ## 4. `download_history`
 
-终态任务历史。最小字段：`id`（任务 ID 主键）、`url`、`filename`、`output_dir`、`source_type`、`status`、`bytes_downloaded`、`bytes_total`、`retry_count`、`error_code`、`error_message`、`created_at`、`finished_at`。历史可以通过归档复制或从终态任务视图提供，但 `clear-completed` 不删除历史。避免任务表和历史重复事实不一致；实现选择单表查询视图或事务归档，并在 DEV-08 统一。
+终态任务历史。最小字段：`id`（任务 ID 主键）、`url`、`filename`、`output_dir`、`source_type`、`status`、`bytes_downloaded`、`bytes_total`、`retry_count`、`error_code`、`error_message`、`created_at`、`finished_at`。当前实现选择从 `download_tasks` 派生的 `download_history` 视图，包含 `completed`、`failed`、`cancelled`、`skipped`；因此清理完成队列记录不得删除历史事实。规则删除时，任务上的 `rule_id` 通过外键 `ON DELETE SET NULL` 清空，不删除任务。
+
+### DEV-08/09 实现约定
+
+- 首次启动插入唯一 `settings.id = 1` 行；默认下载位置为当前用户的 `Downloads`，并发 4、重试 3、冲突策略 `ask`、模式 `direct`。
+- `GET /api/v1/settings` 返回完整设置和 `updated_at`；`PUT` 接收完整设置对象并原子替换。并发限制为 1–32，重试次数不得小于 0，路径必须为绝对路径，策略和模式使用枚举值。
+- SQLite 约束重复校验关键设置，并发范围、重试下限、冲突策略、模式、任务状态及来源类型。设置 API 在每个桌面实例的 Session Token 保护下提供。
 
 ## 5. 事务及恢复
 
@@ -65,4 +71,3 @@
 - 终态更新与历史可见性原子化。
 - 启动恢复将状态 `downloading` 更新为 `pending`，保留 `.part` 路径/字节计数；恢复后依据文件实际大小校准字节数。
 - SQLite 不保存 Session Token、请求头密钥或敏感凭据。
-

@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import secrets
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Receive, Scope, Send
+
+from backend.api.settings import router as settings_router
+from backend.persistence.database import Database
+from backend.persistence.settings import SettingsRepository, SettingsService
 
 
 class LocalInstanceAuth:
@@ -52,9 +57,28 @@ class LocalInstanceAuth:
         await self.app(scope, receive, send)
 
 
-def create_app(session_token: str | None = None) -> ASGIApp:
-    """Create an API app; desktop instances pass a fresh per-process token."""
-    api = FastAPI(title="Universal Downloader API", version="0.1.0")
+def create_app(
+    session_token: str | None = None,
+    database_path: str | Path | None = None,
+) -> ASGIApp:
+    """Create an API app; desktop instances pass a fresh token and persistent DB path."""
+    database = Database(database_path)
+
+    @asynccontextmanager
+    async def lifespan(api: FastAPI):
+        await database.initialize()
+        repository = SettingsRepository(database)
+        await repository.ensure_defaults()
+        api.state.database = database
+        api.state.settings_service = SettingsService(repository)
+        try:
+            yield
+        finally:
+            api.state.settings_service = None
+            api.state.database = None
+
+    api = FastAPI(title="Universal Downloader API", version="0.1.0", lifespan=lifespan)
+    api.include_router(settings_router)
 
     @api.get("/api/v1/health", tags=["health"])
     async def health() -> dict[str, str]:
