@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import type { NativeBridgeApi } from './api/runtime'
 
 type PageId = 'workspace' | 'history' | 'rules' | 'settings'
 type Mode = 'direct' | 'rule'
@@ -64,6 +65,10 @@ const previewItems = computed(() => ruleRows.value.filter((row) => row.valid).sl
   url: template.value.replaceAll('{base_url}', baseUrl.value.trim().replace(/\/$/, '')).replaceAll('{name}', name).replaceAll('{version}', version).replaceAll('{filename}', `${name}.hpi`).replaceAll('{ext}', 'hpi'),
 })))
 
+function nativeApi(): NativeBridgeApi | undefined {
+  return window.pywebview?.api
+}
+
 function setNotice(message: string) {
   notice.value = message
   window.setTimeout(() => { if (notice.value === message) notice.value = '' }, 2600)
@@ -109,8 +114,43 @@ function stopAll() {
   setNotice('已停止所有活动任务')
 }
 
-function chooseFolder() {
-  setNotice('桌面版将通过 Windows 文件夹选择器选择目录')
+async function chooseFolder() {
+  const api = nativeApi()
+  if (!api) {
+    setNotice('文件夹选择仅在桌面版中可用')
+    return
+  }
+  try {
+    const selected = await api.choose_folder(outputDir.value)
+    if (selected) outputDir.value = selected
+  } catch {
+    setNotice('无法打开文件夹选择器')
+  }
+}
+
+async function openDownloadFolder() {
+  const api = nativeApi()
+  if (!api) {
+    setNotice(`文件位置：${outputDir.value}`)
+    return
+  }
+  try {
+    if (!await api.open_folder(outputDir.value)) setNotice('下载目录不存在')
+  } catch {
+    setNotice('无法打开下载目录')
+  }
+}
+
+function minimizeWindow() {
+  void nativeApi()?.minimize()
+}
+
+function toggleMaximizeWindow() {
+  void nativeApi()?.toggle_maximize()
+}
+
+function closeWindow() {
+  void nativeApi()?.close_window()
 }
 </script>
 
@@ -119,9 +159,9 @@ function chooseFolder() {
     <header class="titlebar">
       <div class="brand"><span class="brand-arrow">↓</span><strong>通用下载器</strong><span class="brand-divider">|</span><span class="brand-context">工作台</span></div>
       <div class="window-controls" aria-label="窗口控制">
-        <button type="button" aria-label="最小化" @click="setNotice('桌面版窗口控制将在桌面壳阶段接入')">−</button>
-        <button type="button" aria-label="最大化" @click="setNotice('桌面版窗口控制将在桌面壳阶段接入')">□</button>
-        <button type="button" aria-label="关闭" @click="setNotice('桌面版窗口控制将在桌面壳阶段接入')">×</button>
+        <button type="button" aria-label="最小化" @click="minimizeWindow">−</button>
+        <button type="button" aria-label="最大化或还原" @click="toggleMaximizeWindow">□</button>
+        <button type="button" aria-label="关闭" @click="closeWindow">×</button>
       </div>
     </header>
 
@@ -196,7 +236,7 @@ function chooseFolder() {
             <div class="queue-table-wrap"><table class="queue-table"><thead><tr><th>文件 / 来源</th><th>状态</th><th>大小</th><th>操作</th></tr></thead><tbody>
               <tr v-for="task in tasks" :key="task.id"><td class="file-cell"><strong>{{ task.filename }}</strong><span>{{ task.source }}</span><div v-if="task.status === 'downloading'" class="progress-track"><span :style="{ width: `${task.progress}%` }"></span></div></td>
                 <td><span class="status" :class="`status-${task.status}`"><i>{{ task.status === 'downloading' ? '↓' : task.status === 'waiting' ? '◷' : task.status === 'completed' ? '✓' : task.status === 'failed' ? '!' : 'Ⅱ' }}</i>{{ task.status === 'downloading' ? `下载中 ${task.progress}%` : task.status === 'waiting' ? '等待中' : task.status === 'completed' ? '已完成' : task.status === 'failed' ? '失败' : '已取消' }}</span></td>
-                <td class="size-cell">{{ task.size }}</td><td class="actions-cell"><button v-if="task.status === 'downloading' || task.status === 'waiting'" type="button" @click="stopTask(task)">暂停</button><button v-else-if="task.status === 'failed' || task.status === 'cancelled'" type="button" @click="retryTask(task)">重试</button><button v-else type="button" @click="setNotice(`打开目录：${outputDir}`)">打开位置</button><button v-if="task.status === 'waiting' || task.status === 'cancelled'" class="remove-action" type="button" @click="removeTask(task)">移除</button></td>
+                <td class="size-cell">{{ task.size }}</td><td class="actions-cell"><button v-if="task.status === 'downloading' || task.status === 'waiting'" type="button" @click="stopTask(task)">暂停</button><button v-else-if="task.status === 'failed' || task.status === 'cancelled'" type="button" @click="retryTask(task)">重试</button><button v-else type="button" @click="openDownloadFolder">打开位置</button><button v-if="task.status === 'waiting' || task.status === 'cancelled'" class="remove-action" type="button" @click="removeTask(task)">移除</button></td>
               </tr>
               <tr v-if="tasks.length === 0"><td colspan="4" class="empty-state">队列为空，可以从上方新建下载任务。</td></tr>
             </tbody></table></div>

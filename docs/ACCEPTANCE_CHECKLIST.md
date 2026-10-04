@@ -53,5 +53,13 @@
 - [ ] Python 依赖通过 `pyproject.toml` 管理，`uv.lock` 已生成（初始化 Git 后纳入版本控制）
 - [ ] Python 开发/测试/构建通过 `uv run` 使用项目 `.venv`
 - [ ] `uv run pytest` 能启动并通过当前测试
-- [ ] `uv run python main.py` 可启动 FastAPI，`/api/v1/health` 返回 200
+- [ ] `uv run uvicorn backend.api.app:app --host 127.0.0.1 --port 8765` 可启动开发 API，`/api/v1/health` 返回 200
 - [ ] `npm run dev` 可启动 Vue/Vite；前端构建成功
+
+## DEV-05：FastAPI + Native Bridge
+
+- [ ] API 使用随机本地端口，只监听 `127.0.0.1`
+- [ ] 健康检查可用，其他本地 API/WS 请求校验当前实例 Session Token
+- [ ] API 就绪后才创建 pywebview 窗口；窗口退出后 API 服务停止
+- [ ] 原生文件夹选择、打开目录、最小化、最大化/还原和关闭可用
+- [ ] 无边框窗口标题区域可拖动

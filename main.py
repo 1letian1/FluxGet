@@ -1,15 +1,10 @@
-"""Development entry point for the local FastAPI backend."""
+"""Desktop application entry point."""
 
-import uvicorn
+from desktop.lifecycle import run_desktop
 
 
 def main() -> None:
-    uvicorn.run(
-        "backend.api.app:app",
-        host="127.0.0.1",
-        port=8765,
-        reload=False,
-    )
+    run_desktop()
 
 
 if __name__ == "__main__":

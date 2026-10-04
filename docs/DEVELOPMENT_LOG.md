@@ -35,3 +35,11 @@
 - 增加 1120px、850px、560px 响应式布局断点；桌面下维持参考图的侧栏、双栏来源/保存卡片和队列，较窄屏幕改为图标导航和纵向卡片。
 - 前端构建：`npm run build` 通过（`vue-tsc -b`、Vite production build）。浏览器视口已查看 1024×768、1124×1068、1366×768、1440×900、1920×1080。
 - 尚未完成 DPI 100%/125%/150% 实机验收，也未产出参考图像素差分图；发布验收清单中的视觉/DPI项目仍保持未验证。
+
+## DEV-05：FastAPI + Native Bridge
+
+- 新增 FastAPI 应用工厂；桌面运行时使用随机 loopback 端口和每进程随机 Session Token，健康检查不要求 Token，其余 HTTP/WS 请求通过常量时间比较校验 `X-Session-Token`（WebSocket 也接受握手参数）。
+- 新增桌面生命周期：先启动 Uvicorn 并等待健康检查，再创建无边框 pywebview 窗口；关闭窗口后停止 API 线程。生产前端由同一个 loopback 服务提供，避免 `file://` 跨域访问；开发模式可通过 `UNIVERSAL_DOWNLOADER_FRONTEND_URL` 指向 Vite 服务。
+- Native Bridge 提供运行时 API 凭据、原生文件夹选择、打开目录、最小化、最大化/还原和关闭；Vue 的对应按钮已接入桥接，浏览器预览时保留提示行为。窗口使用 pywebview 的 `easy_drag` 支持无边框拖动。
+- 本阶段仅建立启动/API/桥接骨架；任务 API、数据库初始化、安全关闭时的下载任务协调仍按后续阶段实现。
+- 验收状态：本轮代码完成；需在可用 Windows 桌面会话中验证 pywebview 原生窗口及文件夹选择器。未将此类实机验收标记为通过。
