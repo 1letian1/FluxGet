@@ -57,3 +57,11 @@
 - 默认值为用户 Downloads 目录、空子目录、并发 4、自动重试 3、冲突策略 `ask`、模式 `direct`；PUT 以完整对象写入并更新 UTC 时间。
 - 校验绝对输出目录、拒绝空路径/null byte/额外字段，并发范围 1–32、重试非负、冲突策略及模式枚举；数据库约束同步兜底。
 - 验收状态：实现完成；本轮未运行测试或做跨进程重启验证，前端设置页面尚未接入该 API，属于后续前后端联调阶段。
+
+## DEV-10：RuleEngine
+
+- 新增纯规则引擎模块：逐行 Parser、统一 Renderer、HTTP/HTTPS URLValidator、Preview DTO 和 TaskFactory 任务输入 DTO；引擎不依赖数据库或下载调度。
+- 当前输入采用现有 UI 示例对应的空格/Tab 分隔格式：`name version [filename] [ext]`。每行独立返回结果，坏行不会阻断有效行；旧 HPI 输入兼容性仍待样例确认。
+- URL 与文件名预览只由同一个 Renderer 生成；任务输入从 Preview 结果构造。校验拒绝未知占位符、非 HTTP(S) URL、URL 凭据及 Windows 不安全文件名。
+- Jenkins HPI 规则模板已提供，但 `base_url` 保持未配置，不臆造默认站点地址。
+- 验收状态：实现及规格记录完成；本轮未运行测试。规则 CRUD/SQLite 读写和预览 HTTP API 属于 DEV-11，尚未实现。

@@ -30,7 +30,8 @@ default_ext       = hpi
 
 - 输入可粘贴多行；空白行忽略。
 - 每一行独立解析并返回原始行号、归一化字段或行级错误。坏行不阻断其他行。
-- 字段分隔符、引号/转义规则必须依据原 HPI 示例冻结；当前资料未提供示例，故本阶段将格式标记为未决。实现不得静默猜测多种歧义格式。
+- 当前实现格式：空格或 Tab 分隔的 2–4 列，依次为 `name version [filename] [ext]`；未提供 filename 时使用 name，未提供 ext 时使用规则的 `default_ext`。字段不支持空格、引号或转义。
+- 上述格式来自现有 UI 示例，是当前应用输入约定；它不代表已确认兼容旧 HPI 输入。原程序样例仍须在 DEV-10 前取得并确认；如样例不同，按样例调整 Parser 并更新本规格。
 - 规则字段必须非空/可解释；模板中未定义占位符、缺少必填变量、非法 URL 均以明确错误报告。
 
 ## 5. Renderer、预览与任务创建
@@ -44,3 +45,9 @@ default_ext       = hpi
 - 删除规则不删除既有任务和历史快照。
 - 除五个定义变量外的变量一律拒绝，避免未解析占位符进入 URL。
 
+## 7. DEV-10 RuleEngine 实现边界
+
+- RuleEngine 提供 Parser、Renderer、URLValidator、Preview 和 TaskFactory；不访问数据库、不写文件、不调度下载。
+- `preview()` 的 `RulePreview` 是预览和任务生成共享的数据对象；`create_task_specs()` 仅从有效预览项生成下载任务输入。
+- URL 模板字段值按 URL 组件编码；输出 URL 只允许绝对 HTTP/HTTPS，拒绝凭据和空白字符。文件名拒绝路径分隔符、Windows 非法字符和保留设备名。
+- Jenkins 内置规则模板为 `{base_url}/{name}/{version}/{name}.hpi`，默认文件名为 `{name}-{version}.hpi`；默认 base_url 留空，配置来源待确认，渲染时会清楚报告缺少有效地址。

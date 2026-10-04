@@ -77,3 +77,12 @@
 - [ ] GET 设置返回完整持久化配置
 - [ ] PUT 设置验证字段并持久化完整配置
 - [ ] 并发仅接受 1–32，重试次数非负，目录为绝对路径，策略和模式为合法枚举
+
+## DEV-10：RuleEngine
+
+- [ ] Parser 忽略空白行并保留原始行号；错误行不阻断有效行
+- [ ] Parser 支持当前冻结格式 `name version [filename] [ext]`
+- [ ] 未知模板变量、无效 HTTP/HTTPS URL 和不安全文件名会逐行报错
+- [ ] Preview 与 TaskFactory 共用 Renderer 结果，生成的 URL/文件名一致
+- [ ] Jenkins HPI 默认 base_url 未配置时不臆造地址，预览明确提示错误
+- [ ] 原始 HPI 输入兼容性待取得旧程序样例后验证
