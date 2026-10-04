@@ -1,0 +1,101 @@
+:root {
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif;
+  color: #202938;
+  background: #f5f7fa;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.page-shell {
+  display: grid;
+  min-height: 100vh;
+  padding: 32px;
+  place-items: center;
+}
+
+.starter-card {
+  width: min(100%, 520px);
+  padding: 48px;
+  border: 1px solid #e4e9f0;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 18px 55px rgb(32 41 56 / 8%);
+}
+
+.app-mark {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 28px;
+  border-radius: 14px;
+  color: #fff;
+  background: #3978e8;
+  font-size: 28px;
+  place-items: center;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: #6e7d91;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+h1 {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: 0.01em;
+}
+
+.description {
+  margin: 12px 0 28px;
+  color: #69778a;
+  line-height: 1.7;
+}
+
+.health-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 10px;
+  color: #536174;
+  background: #f4f6f9;
+  font-size: 14px;
+}
+
+.health-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #a1aab7;
+}
+
+.health-dot.connected {
+  background: #23a36d;
+  box-shadow: 0 0 0 3px rgb(35 163 109 / 13%);
+}
+
+@media (max-width: 520px) {
+  .page-shell {
+    padding: 18px;
+  }
+
+  .starter-card {
+    padding: 32px 24px;
+  }
+}
