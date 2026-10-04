@@ -1,6 +1,6 @@
 # SQLite 数据模型基线
 
-数据库位置：`%LOCALAPPDATA%\UniversalDownloader\downloader.db`（非 Windows 开发环境使用用户数据目录）。使用 SQLite；异步访问使用 aiosqlite。时间统一存为 UTC ISO-8601 字符串。主键任务/规则使用 UUID 字符串或稳定字符串 ID；实际建表时统一一种格式。通过 `PRAGMA user_version` 进行递增迁移；当前 schema 为版本 3。启动时创建同级 `logs/` 和 `cache/` 目录；应用日志写入 `logs/app.jsonl` 并以 5 MiB、保留 4 个轮转文件的策略限制占用。
+数据库位置：`%LOCALAPPDATA%\UniversalDownloader\downloader.db`（非 Windows 开发环境使用用户数据目录）。使用 SQLite；异步访问使用 aiosqlite。时间统一存为 UTC ISO-8601 字符串。主键任务/规则使用 UUID 字符串或稳定字符串 ID；实际建表时统一一种格式。通过 `PRAGMA user_version` 进行递增迁移；当前 schema 为版本 4。启动时创建同级 `logs/` 和 `cache/` 目录；应用日志写入 `logs/app.jsonl` 并以 5 MiB、保留 4 个轮转文件的策略限制占用。
 
 ## 1. `settings`
 
@@ -54,6 +54,7 @@
 | `max_retries` | INTEGER NOT NULL | 创建时快照 |
 | `conflict_policy` | TEXT enum | 创建时设置快照；`overwrite` / `rename` / `skip` / `ask` |
 | `error_code`,`error_message` | TEXT NULL | 可读错误摘要 |
+| `queue_cleared` | INTEGER CHECK 0/1 | 已从工作队列清除；终态历史仍保留 |
 | `created_at`,`updated_at`,`started_at`,`finished_at` | TEXT | UTC；后两者可空 |
 
 索引：`status, created_at`、`created_at`。任务状态和进度需在关键转移与节流进度点持久化。
@@ -67,6 +68,7 @@
 - 首次启动插入唯一 `settings.id = 1` 行；默认下载位置为当前用户的 `Downloads`，并发 4、重试 3、冲突策略 `ask`、模式 `direct`。
 - `GET /api/v1/settings` 返回完整设置和 `updated_at`；`PUT` 接收完整设置对象并原子替换。并发限制为 1–32，重试次数不得小于 0，路径必须为绝对路径，策略和模式使用枚举值。
 - SQLite 约束重复校验关键设置，并发范围、重试下限、冲突策略、模式、任务状态及来源类型。设置 API 在每个桌面实例的 Session Token 保护下提供。
+- schema v4 增加 `queue_cleared` 标记；清空已完成只从工作队列隐藏完成任务，不删除 `download_history` 视图中的历史数据。
 
 ## 5. 事务及恢复
 

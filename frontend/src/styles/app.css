@@ -196,7 +196,7 @@ select { color-scheme: dark; cursor: pointer; }
 .subpage-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 19px; border-bottom: 1px solid #364251; }
 .subpage-toolbar p { margin: 7px 0 0; color: #94a9c1; font-size: 13px; }
 .history-list, .rule-list { display: grid; }
-.history-row { display: grid; grid-template-columns: 38px minmax(150px, 1fr) 130px 88px 35px; min-height: 75px; align-items: center; gap: 12px; border-bottom: 1px solid #34404e; }
+.history-row { display: grid; grid-template-columns: 38px minmax(150px, 1fr) 160px 88px; min-height: 75px; align-items: center; gap: 12px; border-bottom: 1px solid #34404e; }
 .history-file-icon, .rule-card-icon { display: grid; width: 34px; height: 34px; border-radius: 9px; background: #293747; color: #7bbcff; font-size: 19px; place-items: center; }
 .history-main { min-width: 0; }
 .history-main strong, .history-main span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -205,6 +205,10 @@ select { color-scheme: dark; cursor: pointer; }
 .history-date { margin: 0; }
 .icon-button { padding: 6px; border: 0; background: transparent; color: #a6b9ce; cursor: pointer; }
 .rule-list { gap: 12px; padding-top: 18px; }
+.rule-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 18px 0; border-bottom: 1px solid #364251; }
+.rule-editor .field-group { display: grid; gap: 7px; }
+.rule-editor input, .setting-row input { min-width: 0; min-height: 38px; padding: 0 10px; border: 1px solid #405065; border-radius: 7px; background: #1a222c; color: #e4edf8; }
+.rule-editor .source-actions { grid-column: 1 / -1; justify-content: flex-end; }
 .rule-card { display: flex; align-items: center; gap: 14px; padding: 16px; border: 1px solid #364353; border-radius: 10px; background: #1c242e; }
 .rule-card-icon { flex: 0 0 38px; width: 38px; height: 38px; font-weight: 700; }
 .rule-card-icon.github-mark { font-size: 11px; }
@@ -224,6 +228,7 @@ select { color-scheme: dark; cursor: pointer; }
 .setting-row strong { font-size: 13px; font-weight: 550; }
 .setting-row small { overflow: hidden; margin-top: 5px; color: #8fa4bc; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .setting-row select { width: 130px; min-height: 38px; }
+.setting-row input { width: 150px; }
 .about-row { display: flex; justify-content: space-between; gap: 10px; padding: 16px 0; border-top: 1px solid #364251; color: #9db1c8; font-size: 12px; }
 .about-row strong { color: #dce6f2; font-weight: 500; text-align: right; }
 .service-state { display: inline-flex; align-items: center; gap: 7px; }

@@ -8,7 +8,7 @@ from pathlib import Path
 import aiosqlite
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def default_data_dir() -> Path:
@@ -69,6 +69,9 @@ class Database:
             if version < 3:
                 await self._migrate_to_v3(connection)
                 version = 3
+            if version < 4:
+                await self._migrate_to_v4(connection)
+                version = 4
             await connection.execute(f"PRAGMA user_version = {version}")
             await connection.commit()
 
@@ -150,3 +153,9 @@ class Database:
         await connection.execute("ALTER TABLE download_tasks ADD COLUMN output_root TEXT NOT NULL DEFAULT ''")
         await connection.execute("ALTER TABLE download_tasks ADD COLUMN subdir TEXT NOT NULL DEFAULT ''")
         await connection.execute("UPDATE download_tasks SET output_root = output_dir WHERE output_root = ''")
+
+    @staticmethod
+    async def _migrate_to_v4(connection: aiosqlite.Connection) -> None:
+        await connection.execute(
+            "ALTER TABLE download_tasks ADD COLUMN queue_cleared INTEGER NOT NULL DEFAULT 0 CHECK (queue_cleared IN (0, 1))"
+        )

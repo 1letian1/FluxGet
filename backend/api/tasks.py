@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -30,6 +31,7 @@ class RuleTaskRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     rule_id: str = Field(min_length=1, max_length=128)
     inputs: str = Field(min_length=1, max_length=1_000_000)
+    base_url: str | None = Field(default=None, max_length=2048)
     output_dir: str | None = Field(default=None, max_length=32767)
     subdir: str | None = Field(default=None, max_length=32767)
 
@@ -59,6 +61,20 @@ async def list_tasks(request: Request, limit: int = 500, offset: int = 0) -> dic
         raise HTTPException(status_code=422, detail="limit must be 1-1000 and offset must be non-negative")
     tasks = await _manager(request).list_tasks(active_only=True, limit=limit, offset=offset)
     return {"items": [task.to_dict() for task in tasks], "limit": limit, "offset": offset}
+
+
+@router.get("/history")
+async def list_history(request: Request, limit: int = 100, offset: int = 0) -> dict[str, object]:
+    if not 1 <= limit <= 1000 or offset < 0:
+        raise HTTPException(status_code=422, detail="limit must be 1-1000 and offset must be non-negative")
+    tasks = await _manager(request).repository.history(limit=limit, offset=offset)
+    return {"items": [task.to_dict() for task in tasks], "limit": limit, "offset": offset}
+
+
+@router.post("/clear-completed")
+async def clear_completed(request: Request) -> dict[str, int]:
+    cleared = await _manager(request).repository.clear_completed_queue()
+    return {"cleared": cleared}
 
 
 @router.post("/direct", status_code=201)
@@ -99,6 +115,8 @@ async def create_rule_tasks(payload: RuleTaskRequest, request: Request) -> dict[
     if row is None:
         raise HTTPException(status_code=404, detail="Rule not found")
     rule = RuleDefinition(**dict(row))
+    if payload.base_url is not None:
+        rule = replace(rule, base_url=payload.base_url.strip())
     engine = RuleEngine()
     previews = engine.preview(rule, payload.inputs)
     settings = await _settings(request).get()

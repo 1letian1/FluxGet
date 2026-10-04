@@ -13,6 +13,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from backend.api.settings import router as settings_router
 from backend.api.logs import router as logs_router
+from backend.api.rules import router as rules_router, seed_builtin_rules
 from backend.api.tasks import events_router, router as tasks_router
 from backend.download.manager import DownloadManager
 from backend.download.repository import TaskRepository
@@ -79,6 +80,7 @@ def create_app(
         try:
             repository = SettingsRepository(database)
             await repository.ensure_defaults()
+            await seed_builtin_rules(database)
             settings = await repository.get()
             download_manager = DownloadManager(
                 TaskRepository(database), concurrency=settings.concurrency,
@@ -103,6 +105,7 @@ def create_app(
     api = FastAPI(title="Universal Downloader API", version="0.1.0", lifespan=lifespan)
     api.include_router(settings_router)
     api.include_router(logs_router)
+    api.include_router(rules_router)
     api.include_router(tasks_router)
     api.include_router(events_router)
 

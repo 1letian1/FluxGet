@@ -15,6 +15,7 @@ API 版本前缀：`/api/v1`。除健康检查外，REST 请求必须携带当�
 |---|---|---|
 | GET | `/api/v1/health` | 健康检查，不要求 Token |
 | GET | `/api/v1/tasks` | 读取活动任务及其状态 |
+| GET | `/api/v1/tasks/history` | 分页读取已结束任务历史 |
 | POST | `/api/v1/tasks/direct` | 校验多行 URL 并为有效项创建任务；返回 created 与逐行 errors |
 | POST | `/api/v1/tasks/from-rule` | 用规则及批量输入创建任务；逐行报告无效项 |
 | POST | `/api/v1/tasks/{id}/cancel` | 请求取消活动任务 |
@@ -29,11 +30,10 @@ API 版本前缀：`/api/v1`。除健康检查外，REST 请求必须携带当�
 | POST | `/api/v1/rules/{id}/preview` | 使用实际 Renderer 预览输入行 |
 | GET | `/api/v1/settings` | 读取设置 |
 | PUT | `/api/v1/settings` | 校验并保存设置 |
-| GET | `/api/v1/history` | 分页读取已结束任务历史 |
 | GET | `/api/v1/logs` | 分页读取近期日志 |
 | POST | `/api/v1/logs/export` | 导出日志；返回导出位置或 Native Bridge 可处理的导出结果 |
 
-列表接口需支持稳定分页（`limit`,`offset`）和明确排序；默认最新优先。直接任务请求建议 `{ "urls": "每行一个 URL", "output_dir": "...", "subdir": "" }`。规则任务请求包含 `rule_id`、批量输入及输出设置。规则字段详见 `RULE_SPEC.md`。设置字段详见 `DATABASE_SCHEMA.md`。具体 Pydantic DTO 在 DEV-07 实现时按此合同定义。
+列表接口需支持稳定分页（`limit`,`offset`）和明确排序；默认最新优先。直接任务请求建议 `{ "urls": "每行一个 URL", "output_dir": "...", "subdir": "" }`。规则任务请求包含 `rule_id`、批量输入及输出设置；可选 `base_url` 覆盖用于本次预览/创建（例如内置规则未配置站点地址时）。规则字段详见 `RULE_SPEC.md`。设置字段详见 `DATABASE_SCHEMA.md`。
 
 设置接口目前按完整对象读写：字段为 `output_dir`、`subdir`、`concurrency`、`max_retries`、`conflict_policy` 和 `current_mode`；响应附带 UTC `updated_at`。缺失字段、额外字段及超出约束的值均拒绝。
 
@@ -52,4 +52,4 @@ API 版本前缀：`/api/v1`。除健康检查外，REST 请求必须携带当�
 
 ## 5. 尚未冻结的细节
 
-日志端点仅暴露当前用户数据目录内的滚动 JSONL 日志：GET 返回最新在前的分页条目，POST `/logs/export` 返回 JSONL 文件名和内容，由前端发起本地下载；端点不接受服务端写入路径。历史 DTO 保留字段/保留期限及 WebSocket Token 传递细节仍按各阶段实现约定处理。
+日志端点仅暴露当前用户数据目录内的滚动 JSONL 日志：GET 返回最新在前的分页条目，POST `/logs/export` 返回 JSONL 文件名和内容，由前端发起本地下载；端点不接受服务端写入路径。历史分页使用 `/api/v1/tasks/history` 并返回终态任务 DTO。规则预览请求接受 `inputs` 和可选 `base_url`，返回逐行 `RulePreview`（含有效性、URL、文件名或错误）。清空完成队列只标记队列状态，保留历史记录。
