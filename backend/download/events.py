@@ -23,7 +23,7 @@ class EventBus:
         self._subscribers: set[asyncio.Queue[DownloadEvent]] = set()
 
     def subscribe(self, maxsize: int = 256) -> asyncio.Queue[DownloadEvent]:
-        queue: asyncio.Queue[DownloadEvent] = asyncio.Queue(maxsize=maxsize)
+        queue: asyncio.Queue[DownloadEvent] = asyncio.Queue(maxsize=max(1, maxsize))
         self._subscribers.add(queue)
         return queue
 
@@ -34,8 +34,18 @@ class EventBus:
         event = DownloadEvent(event_type, data, datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
         for queue in tuple(self._subscribers):
             if queue.full():
-                try:
-                    queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    pass
+                # Losing a lifecycle event can leave the UI stale. Tell the client
+                # to replace its view from the REST snapshot after a slow consumer
+                # falls behind, then continue with the newest event where possible.
+                while not queue.empty():
+                    try:
+                        queue.get_nowait()
+                    except asyncio.QueueEmpty:
+                        break
+                queue.put_nowait(DownloadEvent(
+                    "connection.resync_required", {},
+                    datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                ))
+                if queue.full():
+                    continue
             queue.put_nowait(event)

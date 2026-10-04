@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 class NativeBridge:
-    def __init__(self, api_port: int, session_token: str) -> None:
+    def __init__(self, api_port: int, session_token: str, *, shutdown: Callable[[], None] | None = None) -> None:
         self.api_port = api_port
         self.session_token = session_token
+        self._shutdown_callback = shutdown
         self.window: Any | None = None
         self._maximized = False
 
@@ -55,4 +56,8 @@ class NativeBridge:
 
     def close_window(self) -> None:
         if self.window is not None:
-            self.window.destroy()
+            try:
+                if self._shutdown_callback is not None:
+                    self._shutdown_callback()
+            finally:
+                self.window.destroy()

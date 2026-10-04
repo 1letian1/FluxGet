@@ -48,8 +48,8 @@ API 版本前缀：`/api/v1`。除健康检查外，REST 请求必须携带当�
 
 路径：`/ws/events`。连接需通过握手查询参数或首条消息认证 Session Token；实现选用一种并与本地来源校验共同执行。事件包：`{ "type": "task.progress", "data": {...}, "occurred_at": "ISO-8601" }`。
 
-事件至少包括：`task.created`、`task.started`、`task.progress`、`task.retrying`、`task.waiting_user`、`task.completed`、`task.failed`、`task.cancelled`。进度数据含 task id、已下载字节、总字节（可空）、百分比（不可计算时为空）及速度（可空）。建议限流 4–10 次/秒；连接断开时前端重新 GET 当前任务快照，不使用高频 HTTP 轮询。
+事件至少包括：`task.created`、`task.started`、`task.progress`、`task.retrying`、`task.waiting_user`、`task.completed`、`task.failed`、`task.cancelled`。进度数据含 task id、已下载字节、总字节（可空）、百分比（不可计算时为空）及 `speed_bytes_per_second`（可空）。进度推送最多 5 次/秒。慢消费者积压导致事件丢弃时发送 `connection.resync_required`；客户端连接/重连及收到该事件时重新 GET 当前任务快照，不使用高频 HTTP 轮询。客户端每 25 秒发送文本 `ping` 保持连接，服务端返回 `connection.pong`；连接断开时应及时释放订阅。
 
 ## 5. 尚未冻结的细节
 
-批量输入字段的最终 JSON 形状、历史 DTO 保留字段/保留期限、日志导出目标路径选择交互以及 WebSocket Token 的传递载体将在 DEV-07/API 实现前结合 Native Bridge 确定；不得改变上述资源、行为和安全边界。
+日志端点仅暴露当前用户数据目录内的滚动 JSONL 日志：GET 返回最新在前的分页条目，POST `/logs/export` 返回 JSONL 文件名和内容，由前端发起本地下载；端点不接受服务端写入路径。历史 DTO 保留字段/保留期限及 WebSocket Token 传递细节仍按各阶段实现约定处理。

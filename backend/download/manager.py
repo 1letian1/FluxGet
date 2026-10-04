@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -15,6 +17,8 @@ from backend.download.path_service import PathService, UnsafePath
 from backend.download.repository import TaskRepository
 from backend.download.retry import RetryPolicy
 from backend.download.state_machine import InvalidTaskTransition, TaskStateMachine
+
+logger = logging.getLogger(__name__)
 
 
 class DownloadManager:
@@ -38,13 +42,16 @@ class DownloadManager:
         self._active_slots = 0
         self._closing = False
         self._started = False
-        self._last_progress: dict[str, float] = {}
+        self._last_progress: dict[str, tuple[float, int]] = {}
+        self._delayed_retries: set[asyncio.Task[None]] = set()
 
     async def start(self) -> None:
         if self._started:
             return
         self._closing = False
         tasks = await self.repository.recover_interrupted()
+        logger.info("Download manager started with %d active tasks after recovery", len(tasks),
+                    extra={"event": "recovery.complete"})
         self._workers = [asyncio.create_task(self._worker(), name=f"download-worker-{i}")
                          for i in range(self.WORKER_COUNT)]
         self._started = True
@@ -58,6 +65,11 @@ class DownloadManager:
                 await self.client.aclose()
             return
         self._closing = True
+        delayed = tuple(self._delayed_retries)
+        for task in delayed:
+            task.cancel()
+        if delayed:
+            await asyncio.gather(*delayed, return_exceptions=True)
         for worker in self._workers:
             worker.cancel()
         await asyncio.gather(*self._workers, return_exceptions=True)
@@ -65,6 +77,8 @@ class DownloadManager:
         self._started = False
         if self._owns_client:
             await self.client.aclose()
+        logger.info("Download manager stopped; resumable tasks remain persisted",
+                    extra={"event": "shutdown.complete"})
 
     async def configure(self, *, concurrency: int, max_retries: int, conflict_policy: str) -> None:
         async with self._slot_condition:
@@ -86,6 +100,8 @@ class DownloadManager:
                                    rule_id=rule_id, max_retries=self.max_retries,
                                    conflict_policy=self.conflict_policy, output_root=root, subdir=subdir)
         await self.repository.create(task)
+        logger.info("Download task created", extra={"event": "task.created", "task_id": task.id,
+                    "download_filename": task.filename, "url": self._safe_log_url(task.url), "status": task.status})
         self.events.publish("task.created", task.to_dict())
         if not self._started:
             await self.start()
@@ -199,6 +215,9 @@ class DownloadManager:
                 raise asyncio.CancelledError
             target, safe_name = PathService.resolve_output_path(task.output_root, task.subdir, task.filename)
             task = task.changed(filename=safe_name, output_dir=str(target.parent), temp_path=str(target) + ".part")
+            part_path = Path(task.temp_path)
+            if part_path.is_symlink() or (part_path.exists() and not part_path.is_file()):
+                raise UnsafePath("Partial download path is not a regular file")
             await self.repository.save(task)
             target_dir = target.parent
             target_dir.mkdir(parents=True, exist_ok=True)
@@ -282,11 +301,14 @@ class DownloadManager:
                     output.write(chunk)
                     written += len(chunk)
                     now = asyncio.get_running_loop().time()
-                    if now - self._last_progress.get(task.id, 0.0) >= 0.2:
-                        self._last_progress[task.id] = now
+                    previous = self._last_progress.get(task.id)
+                    if previous is None or now - previous[0] >= 0.2:
+                        speed = (max(0.0, (written - previous[1]) / (now - previous[0]))
+                                 if previous is not None and now > previous[0] else None)
+                        self._last_progress[task.id] = (now, written)
                         current = task.changed(bytes_downloaded=written, bytes_total=total)
                         await self.repository.save(current)
-                        self.events.publish("task.progress", current.to_dict())
+                        self.events.publish("task.progress", {**current.to_dict(), "speed_bytes_per_second": speed})
                 output.flush()
                 os.fsync(output.fileno())
         latest = await self.repository.get(task.id)
@@ -339,6 +361,9 @@ class DownloadManager:
             temp_path = new_temp_path
         updated = task.changed(filename=filename, temp_path=temp_path)
         await self.repository.save(updated)
+        logger.info("Download destination renamed", extra={"event": "task.renamed", "task_id": task.id,
+                    "download_filename": updated.filename, "url": self._safe_log_url(updated.url),
+                    "status": updated.status})
         self.events.publish("task.updated", updated.to_dict())
         return updated
 
@@ -356,7 +381,9 @@ class DownloadManager:
                 error_code="retrying", error_message=self._safe_error(error),
             )
             await self._save(pending, "task.retrying")
-            asyncio.create_task(self._requeue_after(task_id, RetryPolicy.delay(count - 1)))
+            delayed = asyncio.create_task(self._requeue_after(task_id, RetryPolicy.delay(count - 1)))
+            self._delayed_retries.add(delayed)
+            delayed.add_done_callback(self._delayed_retries.discard)
             return
         code = f"http_{error.response.status_code}" if isinstance(error, httpx.HTTPStatusError) else type(error).__name__.lower()
         await self._transition(current, "failed", bytes_downloaded=self._part_size(current),
@@ -379,11 +406,19 @@ class DownloadManager:
         saved = await self.repository.save(updated, expected_status=task.status)
         if not saved:
             return await self._require(task.id)
+        logger.info("Download task state changed to %s", status,
+                    extra={"event": event_type, "task_id": task.id, "download_filename": updated.filename,
+                           "url": self._safe_log_url(updated.url), "status": status,
+                           "error_code": updated.error_code})
         self.events.publish(event_type, updated.to_dict())
         return updated
 
     async def _save(self, task: DownloadTask, event_type: str) -> None:
         await self.repository.save(task)
+        logger.info("Download task update: %s", event_type,
+                    extra={"event": event_type, "task_id": task.id, "download_filename": task.filename,
+                           "url": self._safe_log_url(task.url), "status": task.status,
+                           "error_code": task.error_code})
         self.events.publish(event_type, task.to_dict())
 
     async def _require(self, task_id: str) -> DownloadTask:
@@ -410,6 +445,19 @@ class DownloadManager:
         if isinstance(error, (OSError, UnsafePath)):
             return "Could not access or write the selected download location"
         return "The download failed due to a network or server error"
+
+    @staticmethod
+    def _safe_log_url(url: str) -> str:
+        try:
+            parsed = urlsplit(url)
+            hostname = parsed.hostname or ""
+            if ":" in hostname:
+                hostname = f"[{hostname}]"
+            if parsed.port is not None:
+                hostname = f"{hostname}:{parsed.port}"
+            return urlunsplit((parsed.scheme, hostname, parsed.path, "", ""))
+        except ValueError:
+            return "<invalid-url>"
 
     @staticmethod
     def _content_range_total(value: str | None) -> int | None:

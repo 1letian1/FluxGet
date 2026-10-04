@@ -25,10 +25,12 @@ class ApiServer:
         self.port = port
         self.config = uvicorn.Config(
             create_app(token), host="127.0.0.1", port=port, log_config=None,
-            access_log=False, lifespan="on",
+            access_log=False, lifespan="on", timeout_graceful_shutdown=15,
         )
         self.server = uvicorn.Server(self.config)
         self.thread = threading.Thread(target=self.server.run, name="local-api", daemon=True)
+        self._stop_lock = threading.Lock()
+        self._stopped = False
 
     def start(self, timeout: float = 15.0) -> None:
         self.thread.start()
@@ -47,12 +49,19 @@ class ApiServer:
         raise TimeoutError("Local API server did not become ready within 15 seconds")
 
     def stop(self) -> None:
-        self.server.should_exit = True
-        if self.thread.is_alive():
-            self.thread.join(timeout=10)
-        if self.thread.is_alive():
-            self.server.force_exit = True
-            self.thread.join(timeout=2)
+        with self._stop_lock:
+            if self._stopped:
+                return
+            self.server.should_exit = True
+            if self.thread.is_alive() and threading.current_thread() is not self.thread:
+                self.thread.join(timeout=30)
+            if self.thread.is_alive():
+                logger.error("Local API did not stop cleanly; forcing server shutdown")
+                self.server.force_exit = True
+                self.thread.join(timeout=2)
+            self._stopped = not self.thread.is_alive()
+            if self._stopped:
+                logger.info("Local API stopped after application cleanup")
 
 
 def _reserve_local_port() -> int:
@@ -76,7 +85,7 @@ def run_desktop() -> None:
     token = os.urandom(32).hex()
     api = ApiServer(port, token)
     api.start()
-    bridge = NativeBridge(port, token)
+    bridge = NativeBridge(port, token, shutdown=api.stop)
     try:
         window = webview.create_window(
             "通用下载器", _frontend_url(port), js_api=bridge, width=1440, height=940,
@@ -86,6 +95,7 @@ def run_desktop() -> None:
         if window is None:
             raise RuntimeError("pywebview failed to create the application window")
         bridge.bind_window(window)
+        window.events.closing += api.stop
         webview.start(debug=bool(os.environ.get("UNIVERSAL_DOWNLOADER_DEBUG")))
     finally:
         api.stop()

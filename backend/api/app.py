@@ -12,11 +12,13 @@ from fastapi.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from backend.api.settings import router as settings_router
+from backend.api.logs import router as logs_router
 from backend.api.tasks import events_router, router as tasks_router
 from backend.download.manager import DownloadManager
 from backend.download.repository import TaskRepository
 from backend.persistence.database import Database
 from backend.persistence.settings import SettingsRepository, SettingsService
+from backend.observability import LogService
 
 
 class LocalInstanceAuth:
@@ -70,27 +72,37 @@ def create_app(
     @asynccontextmanager
     async def lifespan(api: FastAPI):
         await database.initialize()
-        repository = SettingsRepository(database)
-        await repository.ensure_defaults()
-        settings = await repository.get()
-        download_manager = DownloadManager(
-            TaskRepository(database), concurrency=settings.concurrency,
-            max_retries=settings.max_retries, conflict_policy=settings.conflict_policy,
-        )
-        await download_manager.start()
-        api.state.database = database
-        api.state.settings_service = SettingsService(repository)
-        api.state.download_manager = download_manager
+        log_service = LogService(database.path.parent / "logs")
+        log_service.configure()
+        api.state.log_service = log_service
+        download_manager: DownloadManager | None = None
         try:
+            repository = SettingsRepository(database)
+            await repository.ensure_defaults()
+            settings = await repository.get()
+            download_manager = DownloadManager(
+                TaskRepository(database), concurrency=settings.concurrency,
+                max_retries=settings.max_retries, conflict_policy=settings.conflict_policy,
+            )
+            api.state.database = database
+            api.state.settings_service = SettingsService(repository)
+            api.state.download_manager = download_manager
+            await download_manager.start()
             yield
         finally:
-            await download_manager.close()
-            api.state.download_manager = None
-            api.state.settings_service = None
-            api.state.database = None
+            try:
+                if download_manager is not None:
+                    await download_manager.close()
+            finally:
+                api.state.download_manager = None
+                api.state.settings_service = None
+                api.state.database = None
+                api.state.log_service = None
+                log_service.close()
 
     api = FastAPI(title="Universal Downloader API", version="0.1.0", lifespan=lifespan)
     api.include_router(settings_router)
+    api.include_router(logs_router)
     api.include_router(tasks_router)
     api.include_router(events_router)
 

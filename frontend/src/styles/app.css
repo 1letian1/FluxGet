@@ -180,6 +180,7 @@ select { color-scheme: dark; cursor: pointer; }
 .status-downloading, .status-completed { color: #56d3aa; }
 .status-waiting { color: #a6bad1; }
 .status-failed { color: #ff8288; }
+.status-skipped { color: #a6bad1; }
 .status-cancelled { color: #a9b6c6; }
 .size-cell { white-space: nowrap; }
 .actions-cell { white-space: nowrap; }
@@ -244,6 +245,10 @@ select { color-scheme: dark; cursor: pointer; }
 .preview-list code { display: block; overflow-wrap: anywhere; color: #b9d0e9; font-family: Consolas, "Cascadia Code", monospace; font-size: 11px; line-height: 1.5; }
 .preview-empty { padding: 35px 20px; color: #98adc4; font-size: 13px; text-align: center; }
 .preview-dialog-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 14px 20px; border-top: 1px solid #3a4757; }
+.log-dialog { display: flex; flex-direction: column; }
+.log-list { max-height: min(62vh, 580px); }
+.log-level-error, .log-level-critical { color: #ff8288; }
+.log-level-warning { color: #f1c56f; }
 .toast-enter-active, .toast-leave-active { transition: opacity .18s ease, transform .18s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(8px); }
 

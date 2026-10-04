@@ -1,6 +1,6 @@
 # SQLite 数据模型基线
 
-数据库位置：`%LOCALAPPDATA%\UniversalDownloader\downloader.db`（非 Windows 开发环境使用用户数据目录）。使用 SQLite；异步访问使用 aiosqlite。时间统一存为 UTC ISO-8601 字符串。主键任务/规则使用 UUID 字符串或稳定字符串 ID；实际建表时统一一种格式。通过 `PRAGMA user_version` 进行递增迁移；当前 schema 为版本 3。启动时创建同级 `logs/` 和 `cache/` 目录。
+数据库位置：`%LOCALAPPDATA%\UniversalDownloader\downloader.db`（非 Windows 开发环境使用用户数据目录）。使用 SQLite；异步访问使用 aiosqlite。时间统一存为 UTC ISO-8601 字符串。主键任务/规则使用 UUID 字符串或稳定字符串 ID；实际建表时统一一种格式。通过 `PRAGMA user_version` 进行递增迁移；当前 schema 为版本 3。启动时创建同级 `logs/` 和 `cache/` 目录；应用日志写入 `logs/app.jsonl` 并以 5 MiB、保留 4 个轮转文件的策略限制占用。
 
 ## 1. `settings`
 

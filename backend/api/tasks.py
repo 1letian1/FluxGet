@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -175,11 +176,27 @@ async def websocket_events(websocket: WebSocket) -> None:
         return
     queue = manager.events.subscribe()
     await websocket.accept()
+    incoming = asyncio.create_task(websocket.receive_text())
+    outgoing = asyncio.create_task(queue.get())
     try:
         while True:
-            event = await queue.get()
-            await websocket.send_json(event.to_dict())
+            done, _ = await asyncio.wait({incoming, outgoing}, return_when=asyncio.FIRST_COMPLETED)
+            if incoming in done:
+                try:
+                    message = incoming.result()
+                except WebSocketDisconnect:
+                    break
+                if message == "ping":
+                    await websocket.send_json({"type": "connection.pong", "data": {}, "occurred_at": None})
+                incoming = asyncio.create_task(websocket.receive_text())
+            if outgoing in done:
+                event = outgoing.result()
+                await websocket.send_json(event.to_dict())
+                outgoing = asyncio.create_task(queue.get())
     except WebSocketDisconnect:
         pass
     finally:
+        incoming.cancel()
+        outgoing.cancel()
+        await asyncio.gather(incoming, outgoing, return_exceptions=True)
         manager.events.unsubscribe(queue)

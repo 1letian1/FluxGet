@@ -75,3 +75,25 @@
 - 自动重试仅覆盖超时、连接中断和 HTTP 500/502/503/504，退避为 1/2/4 秒；用户取消保留部分文件。冲突支持 overwrite、rename、skip、ask，等待决议时释放并发槽。
 - 新增 EventBus 和受 Session Token 保护的 `/ws/events`，任务状态与进度通过事件推送；FastAPI lifespan 创建并关闭 DownloadManager，关闭期间活动任务恢复到 pending。
 - 本阶段做了 Python 语法编译检查（通过），未运行 pytest 或下载集成测试。Range、重试、冲突竞态、重启恢复、API/WS 和 Windows 文件行为仍需按 TEST_PLAN 实测；规则 CRUD/预览 API、完成队列清理和历史独立保留仍是后续工作。
+
+## DEV-24：WebSocket / EventBus 联调
+
+- EventBus 对慢订阅者清理过期积压并发出 `connection.resync_required`，避免静默丢失关键状态后 UI 长期过期。
+- `/ws/events` 同时监听事件和客户端输入；支持应用层 ping/pong，客户端断开时及时取消接收任务并注销订阅。
+- 进度事件在最多每秒 5 次的节流下附带 `speed_bytes_per_second`，同时复用任务 DTO 的字节数和百分比字段。
+- 前端新增带 Session Token 的 WebSocket 客户端：首次连接、重连及队列溢出时获取活动任务 REST 快照；指数退避重连、心跳及事件增量合并均已接入工作台。直接 URL 创建、取消、重试请求已连到现有 API。
+- 验收状态：实现已接通；本轮未运行测试或前端构建，因此端到端认证、断线恢复和事件节流仍待按 TEST_PLAN 验证。
+
+## DEV-25：恢复与安全退出
+
+- 启动恢复重新校验根目录、子目录、文件名和 `.part` 路径；只恢复位于经校验目标的普通临时文件，并按其实际大小校准进度。缺少 `.part` 时从 0 字节恢复；不安全、非普通文件或无法读取的项标记 `recovery_failed`，不再进入 Worker 队列。
+- 正常窗口关闭先通知 Uvicorn 停止接收请求并等待 FastAPI lifespan；DownloadManager 取消延迟重试和 Worker，下载中任务保存为 pending 并保留 `.part`，关闭 HTTP 客户端后才销毁窗口。原生关闭按钮、窗口关闭事件及进程清理共用幂等停止逻辑；超过宽限期才强制退出。
+- 验收状态：关闭和恢复流程已实现；异常终止/重启、文件系统边界和 Windows 窗口关闭顺序尚未实测。
+
+## DEV-26：应用日志与导出
+
+- 在用户数据目录 `logs/app.jsonl` 写入 UTF-8 JSONL 结构化日志；单文件 5 MiB，最多保留 4 个轮转文件。
+- 记录任务创建、状态转移、恢复结果及管理器启停；记录下载 URL 时移除查询和片段，错误摘要不包含本地路径。
+- 新增受 Session Token 保护的近期日志分页和 JSONL 导出 API；读取轮转文件、跳过损坏行并限制最大读取量。导出由前端触发文件下载，API 不接受任意服务端写入路径。
+- 工作台近期活动入口可查看最近日志并导出。
+- 验收状态：实现已接通；本轮未运行测试或前端构建，日志轮转、脱敏、下载和 API 认证仍待实测。
