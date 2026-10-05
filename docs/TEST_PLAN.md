@@ -44,3 +44,12 @@ Playwright 覆盖直接 URL、规则模式/预览、创建任务、进度、取�
 ## 6. 阶段门槛
 
 DEV-01 只审阅文档一致性。之后每阶段仅运行相关测试，失败先修复再推进；Release Gate 见 `ACCEPTANCE_CHECKLIST.md`。不把未执行/未通过的验证描述成通过。
+
+## 7. 已实现的自动化测试入口（DEV-30–32）
+
+- 单元与 API/下载集成：`uv run pytest tests/unit tests/integration -q`
+- 完整 Python 测试：`uv run pytest -q`
+- 前端生产构建：`npm run build`（在 `frontend/` 目录）
+- Chromium 浏览器及视觉视口测试：`npm run test:e2e`（在 `frontend/` 目录，先构建前端）
+- Playwright 截图/失败 trace：`test-results/playwright/`（本地产物，已加入 Git 忽略规则）
+- 视觉检查当前断言视口溢出和交互，并保存截图；与已确认参考图进行像素差分仍待参考图基线确认后执行。

@@ -104,3 +104,22 @@
 - 新增终态任务历史分页及完成队列清除 API。schema v4 增加 `queue_cleared` 标记，清空队列不删除历史视图记录。
 - Vue 工作台移除本地演示任务；直链和规则任务均请求后端。事件快照继续驱动活动队列，历史页请求独立历史接口；规则页提供自定义规则 CRUD，设置页读写完整设置对象，冲突任务可提交覆盖/改名/跳过决议。
 - 验收状态：实现已接线，按仓库约定本轮未运行自动化测试或前端构建；schema v3 到 v4 迁移、桌面令牌链路、规则预览到下载和队列清理需后续实测。
+
+## DEV-30：单元测试
+
+- 为 RuleParser/RuleEngine/Renderer、HTTP(S) URL 校验、PathService、RetryPolicy 和 TaskStateMachine 增加单元覆盖，包含非法输入、逐行部分成功、Windows 文件名限制、重试分类/退避及终态转移。
+- 验收：`.venv/Scripts/python -m pytest tests/unit -q`；27 项通过。
+
+## DEV-31：SQLite、API 与下载集成测试
+
+- 建立临时 SQLite 数据库和应用生命周期夹具；覆盖 Token 认证、设置校验/持久化、自定义规则增删与预览、直链逐行错误、冲突跳过和历史记录。
+- 使用回环本地 HTTP 服务验证真实下载字节、`.part` 清理、最终文件及历史状态，不依赖公网。
+- 集成测试发现连接在进入 aiosqlite 异步上下文前已被 await 启动的问题；将 Database.connect 改为应用连接 PRAGMA 并负责关闭的异步上下文管理器，修复数据库初始化和请求路径。
+- 验收：`.venv/Scripts/python -m pytest -q`；单元与集成合计 31 项通过。
+
+## DEV-32：Playwright 视觉与浏览器流程
+
+- 增加 Chromium Playwright 配置和 `npm run test:e2e` 命令；测试会先构建前端，再对临时 FastAPI/SQLite 实例执行。
+- 在 1024×768、1124×1068、1366×768、1440×900、1920×1080 视口检查主要布局、无横向溢出并保存截图；另覆盖规则预览、设置导航及真实下载进入历史。
+- 浏览器截图和失败 trace 写入被 Git 忽略的 `test-results/playwright/`。由于项目尚无已确认的参考图基准，本阶段验证布局与交互并留存截图，未声称完成像素差分验收。
+- 验收：`npm run test:e2e`；生产构建成功，8 项 Playwright 测试通过。

@@ -52,7 +52,7 @@ def _database(request: Request):
 
 async def seed_builtin_rules(database) -> None:
     rule = JENKINS_HPI_RULE
-    async with await database.connect() as connection:
+    async with database.connect() as connection:
         await connection.execute(
             "INSERT OR IGNORE INTO rules (id, name, base_url, url_template, filename_template, default_ext, builtin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
             (rule.id, rule.name, rule.base_url, rule.url_template, rule.filename_template, rule.default_ext),
@@ -62,7 +62,7 @@ async def seed_builtin_rules(database) -> None:
 
 @router.get("")
 async def list_rules(request: Request) -> dict[str, list[dict[str, object]]]:
-    async with await _database(request).connect() as connection:
+    async with _database(request).connect() as connection:
         cursor = await connection.execute(
             "SELECT id, name, base_url, url_template, filename_template, default_ext, builtin FROM rules ORDER BY builtin DESC, name COLLATE NOCASE"
         )
@@ -76,7 +76,7 @@ async def create_rule(payload: RuleInput, request: Request) -> dict[str, object]
     rule_id = f"custom:{uuid4()}"
     values = payload.model_dump()
     try:
-        async with await database.connect() as connection:
+        async with database.connect() as connection:
             await connection.execute(
                 "INSERT INTO rules (id, name, base_url, url_template, filename_template, default_ext, builtin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
                 (rule_id, values["name"].strip(), values["base_url"].strip(), values["url_template"].strip(), values["filename_template"].strip(), values["default_ext"].strip().lstrip(".")),
@@ -94,7 +94,7 @@ async def update_rule(rule_id: str, payload: RuleInput, request: Request) -> dic
     database = _database(request)
     values = payload.model_dump()
     try:
-        async with await database.connect() as connection:
+        async with database.connect() as connection:
             cursor = await connection.execute("SELECT builtin FROM rules WHERE id = ?", (rule_id,))
             row = await cursor.fetchone()
             if row is None:
@@ -115,7 +115,7 @@ async def update_rule(rule_id: str, payload: RuleInput, request: Request) -> dic
 
 @router.delete("/{rule_id}")
 async def delete_rule(rule_id: str, request: Request) -> dict[str, bool]:
-    async with await _database(request).connect() as connection:
+    async with _database(request).connect() as connection:
         cursor = await connection.execute("SELECT builtin FROM rules WHERE id = ?", (rule_id,))
         row = await cursor.fetchone()
         if row is None:
@@ -129,7 +129,7 @@ async def delete_rule(rule_id: str, request: Request) -> dict[str, bool]:
 
 @router.post("/{rule_id}/preview")
 async def preview_rule(rule_id: str, payload: PreviewInput, request: Request) -> dict[str, list[dict[str, object]]]:
-    async with await _database(request).connect() as connection:
+    async with _database(request).connect() as connection:
         cursor = await connection.execute(
             "SELECT id, name, base_url, url_template, filename_template, default_ext, builtin FROM rules WHERE id = ?",
             (rule_id,),

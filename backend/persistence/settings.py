@@ -28,7 +28,7 @@ class SettingsRepository:
         self.database = database
 
     async def ensure_defaults(self) -> None:
-        async with await self.database.connect() as connection:
+        async with self.database.connect() as connection:
             await connection.execute(
                 """INSERT OR IGNORE INTO settings
                    (id, output_dir, subdir, concurrency, max_retries,
@@ -39,7 +39,7 @@ class SettingsRepository:
             await connection.commit()
 
     async def get(self) -> AppSettings:
-        async with await self.database.connect() as connection:
+        async with self.database.connect() as connection:
             cursor = await connection.execute(
                 """SELECT output_dir, subdir, concurrency, max_retries,
                           conflict_policy, current_mode, updated_at
@@ -53,7 +53,7 @@ class SettingsRepository:
     async def replace(self, settings: AppSettings) -> AppSettings:
         updated_at = utc_now()
         values = asdict(settings)
-        async with await self.database.connect() as connection:
+        async with self.database.connect() as connection:
             await connection.execute(
                 """INSERT INTO settings
                    (id, output_dir, subdir, concurrency, max_retries,

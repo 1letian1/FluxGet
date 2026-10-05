@@ -29,7 +29,7 @@ class TaskRepository:
     async def create(self, task: DownloadTask) -> None:
         columns = ", ".join(self._COLUMNS)
         placeholders = ", ".join("?" for _ in self._COLUMNS)
-        async with await self.database.connect() as connection:
+        async with self.database.connect() as connection:
             await connection.execute(
                 f"INSERT INTO download_tasks ({columns}) VALUES ({placeholders})",
                 tuple(getattr(task, key) for key in self._COLUMNS),
@@ -39,7 +39,7 @@ class TaskRepository:
     async def save(self, task: DownloadTask, *, expected_status: str | None = None) -> bool:
         columns = ", ".join(f"{key} = ?" for key in self._COLUMNS if key != "id")
         values = tuple(getattr(task, key) for key in self._COLUMNS if key != "id")
-        async with await self.database.connect() as connection:
+        async with self.database.connect() as connection:
             where = "id = ?" if expected_status is None else "id = ? AND status = ?"
             params = (*values, task.id) if expected_status is None else (*values, task.id, expected_status)
             cursor = await connection.execute(f"UPDATE download_tasks SET {columns} WHERE {where}", params)
@@ -47,14 +47,14 @@ class TaskRepository:
             return cursor.rowcount == 1
 
     async def get(self, task_id: str) -> DownloadTask | None:
-        async with await self.database.connect() as connection:
+        async with self.database.connect() as connection:
             cursor = await connection.execute("SELECT * FROM download_tasks WHERE id = ?", (task_id,))
             row = await cursor.fetchone()
         return self._from_row(row) if row else None
 
     async def list(self, *, active_only: bool = False, limit: int = 500, offset: int = 0) -> list[DownloadTask]:
         where = "WHERE status IN ('pending', 'downloading', 'waiting_user') OR (status = 'completed' AND queue_cleared = 0)" if active_only else ""
-        async with await self.database.connect() as connection:
+        async with self.database.connect() as connection:
             cursor = await connection.execute(
                 f"SELECT * FROM download_tasks {where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
                 (limit, offset),
@@ -63,7 +63,7 @@ class TaskRepository:
         return [self._from_row(row) for row in rows]
 
     async def history(self, *, limit: int = 100, offset: int = 0) -> list[DownloadTask]:
-        async with await self.database.connect() as connection:
+        async with self.database.connect() as connection:
             cursor = await connection.execute(
                 "SELECT * FROM download_tasks WHERE status IN ('completed', 'failed', 'cancelled', 'skipped') ORDER BY finished_at DESC, created_at DESC, id DESC LIMIT ? OFFSET ?",
                 (limit, offset),
@@ -72,7 +72,7 @@ class TaskRepository:
         return [self._from_row(row) for row in rows]
 
     async def clear_completed_queue(self) -> int:
-        async with await self.database.connect() as connection:
+        async with self.database.connect() as connection:
             cursor = await connection.execute(
                 "UPDATE download_tasks SET queue_cleared = 1 WHERE status = 'completed' AND queue_cleared = 0"
             )
@@ -80,7 +80,7 @@ class TaskRepository:
             return cursor.rowcount
 
     async def recover_interrupted(self) -> list[DownloadTask]:
-        async with await self.database.connect() as connection:
+        async with self.database.connect() as connection:
             cursor = await connection.execute("SELECT * FROM download_tasks WHERE status = 'downloading'")
             rows = await cursor.fetchall()
             for row in rows:

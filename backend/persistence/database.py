@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import AsyncIterator
 
 import aiosqlite
 
@@ -39,12 +41,14 @@ class Database:
     def __init__(self, path: str | Path | None = None) -> None:
         self.path = Path(path) if path is not None else default_data_dir() / "downloader.db"
 
-    async def connect(self) -> aiosqlite.Connection:
-        connection = await aiosqlite.connect(self.path)
-        connection.row_factory = aiosqlite.Row
-        await connection.execute("PRAGMA foreign_keys = ON")
-        await connection.execute("PRAGMA busy_timeout = 5000")
-        return connection
+    @asynccontextmanager
+    async def connect(self) -> AsyncIterator[aiosqlite.Connection]:
+        """Open a connection and apply per-connection safety settings."""
+        async with aiosqlite.connect(self.path, timeout=5) as connection:
+            connection.row_factory = aiosqlite.Row
+            await connection.execute("PRAGMA foreign_keys = ON")
+            await connection.execute("PRAGMA busy_timeout = 5000")
+            yield connection
 
     async def initialize(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -52,7 +56,7 @@ class Database:
         (data_dir / "logs").mkdir(exist_ok=True)
         (data_dir / "cache").mkdir(exist_ok=True)
 
-        async with await self.connect() as connection:
+        async with self.connect() as connection:
             cursor = await connection.execute("PRAGMA user_version")
             row = await cursor.fetchone()
             version = int(row[0]) if row else 0

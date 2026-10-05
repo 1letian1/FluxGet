@@ -10,6 +10,8 @@ venv/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+test-results/
+playwright-report/
 
 # Python build and packaging output
 build/

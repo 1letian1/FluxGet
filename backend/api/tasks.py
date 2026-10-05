@@ -106,7 +106,7 @@ async def create_rule_tasks(payload: RuleTaskRequest, request: Request) -> dict[
     database = getattr(request.app.state, "database", None)
     if database is None:
         raise HTTPException(status_code=503, detail="Database is unavailable")
-    async with await database.connect() as connection:
+    async with database.connect() as connection:
         cursor = await connection.execute(
             "SELECT id, name, base_url, url_template, filename_template, default_ext, builtin FROM rules WHERE id = ?",
             (payload.rule_id,),
