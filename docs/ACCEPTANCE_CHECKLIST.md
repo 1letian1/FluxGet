@@ -119,3 +119,14 @@
 - [ ] 用户数据目录产生轮转 JSONL 应用日志，任务生命周期事件可追踪
 - [ ] Session Token 保护的近期日志 API 支持分页和导出
 - [ ] 日志导出内容不包含 URL 查询参数，导出文件可由前端下载
+
+## DEV-34–36：Windows 打包、Portable 与发布验收
+
+- [x] 构建从项目 `.venv` 执行，包含前端 production build 与 Python 测试
+- [x] 单文件 EXE 通过 PE、前端资源、Windows 11 构建机启动、API 健康与正常关闭检查
+- [ ] 单文件及 Portable 在目标环境通过真实 UI 下载完成检查
+- [x] Portable 目录版及 ZIP 包含完整 Python/应用依赖和前端资源
+- [x] SHA-256 清单与发布文件一同保存
+- [ ] 无 Python/Node/npm 的干净 Windows 11 环境：单文件和 Portable 启动、下载、关闭、重启通过
+- [ ] 无 Python/Node/npm 的 Windows 10 环境：单文件和 Portable 启动、下载、关闭、重启通过
+- [ ] 发布验收记录包含系统版本/架构、Git commit、构建工具版本、测试结果和缺陷

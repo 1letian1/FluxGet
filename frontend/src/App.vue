@@ -79,6 +79,13 @@ function applyTaskEvent(event: TaskEvent) {
   else tasks.value[index] = task
 }
 
+function applyCreatedTask(task: ApiTask) {
+  // A fast download can finish over WebSocket before the creation POST returns.
+  // Keep the newer event state instead of regressing it to the stale pending DTO.
+  if (tasks.value.some((item) => item.id === task.id)) return
+  applyTaskEvent({ type: 'task.created', data: task, occurred_at: null })
+}
+
 onMounted(() => {
   void loadSettings()
   void loadRules()
@@ -185,7 +192,8 @@ watch(selectedRule, (rule) => { baseUrl.value = rule?.base_url ?? '' }, { immedi
 watch([outputDir, subdir, concurrency, maxRetries, conflictPolicy, mode], () => { settingsDirty.value = true })
 
 function nativeApi(): NativeBridgeApi | undefined {
-  return window.pywebview?.api
+  const api = window.pywebview?.api
+  return api && typeof api.get_runtime_config === 'function' ? api : undefined
 }
 
 function setNotice(message: string) {
@@ -201,7 +209,7 @@ async function addTasks() {
       ? { urls: directInput.value, output_dir: outputDir.value, subdir: subdir.value }
       : { rule_id: selectedRuleId.value, inputs: ruleInput.value, base_url: baseUrl.value, output_dir: outputDir.value, subdir: subdir.value }
     const result = await apiRequest<{ created: ApiTask[]; errors: Array<{ line: number }> }>(path, { method: 'POST', body: JSON.stringify(body) })
-    result.created.forEach((task) => applyTaskEvent({ type: 'task.created', data: task, occurred_at: null }))
+    result.created.forEach(applyCreatedTask)
     setNotice(`已加入 ${result.created.length} 个任务${result.errors.length ? `，${result.errors.length} 行无效` : ''}`)
   } catch (error) { setNotice(`创建任务失败：${error instanceof Error ? error.message : '服务错误'}`) }
 }
@@ -376,7 +384,7 @@ function closeWindow() {
 <template>
   <main class="app-frame">
     <header class="titlebar">
-      <div class="brand"><span class="brand-arrow">↓</span><strong>通用下载器</strong><span class="brand-divider">|</span><span class="brand-context">工作台</span></div>
+      <div class="brand"><span class="brand-arrow">↓</span><strong>URL下载器</strong><span class="brand-divider">|</span><span class="brand-context">工作台</span></div>
       <div class="window-controls" aria-label="窗口控制">
         <button type="button" aria-label="最小化" @click="minimizeWindow">−</button>
         <button type="button" aria-label="最大化或还原" @click="toggleMaximizeWindow">□</button>

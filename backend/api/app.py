@@ -102,7 +102,7 @@ def create_app(
                 api.state.log_service = None
                 log_service.close()
 
-    api = FastAPI(title="Universal Downloader API", version="0.1.0", lifespan=lifespan)
+    api = FastAPI(title="URL Downloader API", version="0.1.0", lifespan=lifespan)
     api.include_router(settings_router)
     api.include_router(logs_router)
     api.include_router(rules_router)

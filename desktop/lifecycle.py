@@ -88,7 +88,7 @@ def run_desktop() -> None:
     bridge = NativeBridge(port, token, shutdown=api.stop)
     try:
         window = webview.create_window(
-            "通用下载器", _frontend_url(port), js_api=bridge, width=1440, height=940,
+            "URL下载器", _frontend_url(port), js_api=bridge, width=1440, height=940,
             min_size=(900, 640), frameless=True, easy_drag=True,
             background_color="#10131a", text_select=True,
         )

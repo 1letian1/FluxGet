@@ -1,1 +1,1 @@
-"""Universal Downloader backend package."""
+"""URL Downloader backend package."""

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "universal-downloader"
 version = "0.1.0"
-description = "Windows desktop universal downloader"
+description = "Windows desktop URL downloader"
 requires-python = ">=3.10"
 dependencies = [
     "aiofiles>=24.1.0",

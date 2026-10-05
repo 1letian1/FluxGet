@@ -123,3 +123,27 @@
 - 在 1024×768、1124×1068、1366×768、1440×900、1920×1080 视口检查主要布局、无横向溢出并保存截图；另覆盖规则预览、设置导航及真实下载进入历史。
 - 浏览器截图和失败 trace 写入被 Git 忽略的 `test-results/playwright/`。由于项目尚无已确认的参考图基准，本阶段验证布局与交互并留存截图，未声称完成像素差分验收。
 - 验收：`npm run test:e2e`；生产构建成功，8 项 Playwright 测试通过。
+
+## DEV-34：PyInstaller Windows 构建
+
+- 新增两个 PyInstaller spec：`UniversalDownloader.spec` 生成单文件 EXE，`UniversalDownloader-portable.spec` 生成自带 `_internal/` 的目录版；收集前端 production dist、FastAPI 后端、pywebview、pythonnet 和 clr_loader 动态模块/资源。
+- 验收：Windows 11 x64、CPython 3.14.7、PyInstaller 6.22.3；通过下述发布脚本两次完成前端构建与 PyInstaller 构建。第一次运行发现 spec 收集了不适用于 Windows 的 Android WebView 后端，改为收集 Windows EdgeChromium/WinForms/MSHTML 后端；随后单文件和 Portable 包均成功生成。
+- 运行冻结的完整 Python 测试：31 passed。首次启动 smoke 受沙箱对 `%LOCALAPPDATA%` 写入限制影响；将该变量指向仓库 `build/acceptance-data/` 后确认两个构建都能显示主窗口、创建 schema v4 数据库，并各完成两次启动和正常关闭。
+
+## DEV-35：Portable Release
+
+- Portable 包结构为 `dist/release/UniversalDownloader-portable/`，并提供对应 ZIP；包含 Python runtime、项目依赖、pywebview 后端与生产前端。便携目录附 README，说明用户数据仍保存在 `%LOCALAPPDATA%\UniversalDownloader`，以及 WebView2 运行时要求。
+- `scripts/verify_release.py` 验证两个 EXE 的 Windows PE 头、Portable Python runtime、前端资源及 ZIP 完整性，并生成 `dist/release/SHA256SUMS.txt`。构建脚本生成 `RELEASE-INFO.txt` 记录系统/架构、工具版本、commit 和未完成的实机门槛。
+- 新增 `scripts/smoke_release.ps1`，可在目标 Windows 桌面为两个发行版本隔离数据目录，执行两轮窗口、API、数据库、重启与安全关闭检查并保存结果。
+- 验收：Windows 11 本机构建；目录版和 ZIP 结构校验通过；两个最终 EXE 的本地窗口启动、loopback `/api/v1/health`、SQLite 初始化、重启及正常关闭 smoke 通过。Windows 10、无开发工具的干净 VM 与下载 UI 操作尚未验收。
+
+## DEV-36：发布验收
+
+- 新增 `scripts/build_release.ps1` 作为候选发布入口：检查项目 `.venv` 和前端依赖，构建 Vue production 资源、运行 Python 测试，再从锁定项目环境构建两个版本并输出校验与哈希。
+- 验收清单继续将干净 Win10/Win11 启动、真实 UI 下载流程及干净环境确认保留为未完成；自动文件结构检查与 Windows 11 开发机 smoke 不能替代这些发布门槛。
+
+## 桌面启动同步与产品名称调整
+
+- 修复 pywebview 的 JS API 尚未注入时前端就发起首批请求的竞态。桌面端现在等待 `pywebviewready` 后获取 API 地址和 Session Token，因此首次规则读取和 WebSocket 订阅可用当前实例凭据完成；浏览器预览模式仍直接使用页面来源。
+- 避免快速下载先通过 WebSocket 到达 `completed`，随后旧的创建 HTTP 响应把任务状态覆盖回 `pending`。队列只在尚无对应任务时使用创建响应插入行。
+- 产品界面、窗口、文档和发行物改名为“URL下载器”/URL Downloader；新 EXE 为 `URLDownloader.exe`。用户数据路径仍使用 `%LOCALAPPDATA%\UniversalDownloader`，让旧版本的设置、规则、历史和日志继续可用。

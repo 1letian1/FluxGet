@@ -1,4 +1,4 @@
-# Universal Downloader 技术架构基线
+# URL Downloader（URL下载器）技术架构基线
 
 ## 1. 目标与固定技术
 
@@ -81,7 +81,8 @@ main.py
 pyproject.toml
 uv.lock                              # 锁定 Python 依赖并纳入版本控制
 .gitignore
-UniversalDownloader.spec            # PyInstaller 阶段新增
+URLDownloader.spec                  # PyInstaller 单文件构建
+URLDownloader-portable.spec         # PyInstaller 目录版构建
 ```
 
 Python 开发、测试和 PyInstaller 构建统一通过根目录 `.venv` 执行，依赖由 `pyproject.toml` 管理，推荐 `uv sync`/`uv run`。`.venv` 不提交 Git，也不进入发布包；`uv.lock` 应提交。前端依赖由 `frontend/package.json` 和 `frontend/package-lock.json` 管理，`frontend/node_modules/` 不提交。

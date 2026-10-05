@@ -1,4 +1,4 @@
-# Universal Downloader 产品需求冻结
+# URL Downloader（URL下载器）产品需求冻结
 
 版本：DEV-01 基线  
 平台：Windows 10 / Windows 11  
@@ -6,7 +6,7 @@
 
 ## 1. 产品目标与用户
 
-Universal Downloader 是面向 Windows 用户的桌面下载器。普通用户可直接下载 HTTP/HTTPS URL；高级用户可用规则批量生成地址，第一版内置 Jenkins HPI 规则。最终交付为无需预装 Python、Node.js 或 npm 的 Windows 程序。
+URL Downloader（URL下载器）是面向 Windows 用户的桌面下载器。普通用户可直接下载 HTTP/HTTPS URL；高级用户可用规则批量生成地址，第一版内置 Jenkins HPI 规则。最终交付为无需预装 Python、Node.js 或 npm 的 Windows 程序。
 
 ## 2. 功能需求
 
@@ -73,4 +73,3 @@ Universal Downloader 是面向 Windows 用户的桌面下载器。普通用户�
 3. 初始冲突策略采用询问用户，是根据需求文字作出的基线解释，请确认。
 4. “文件名默认取 URL 路径”与服务器 `Content-Disposition` 文件名的优先级未定义；第一版按明确 URL 路径规则，不自动改用响应头，除非后续需求确认。
 5. “总体进度”的计算口径（已知总字节加权或任务平均）未定义，UI 阶段结合参考图冻结。
-

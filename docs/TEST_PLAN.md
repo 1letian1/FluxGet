@@ -53,3 +53,13 @@ DEV-01 只审阅文档一致性。之后每阶段仅运行相关测试，失败�
 - Chromium 浏览器及视觉视口测试：`npm run test:e2e`（在 `frontend/` 目录，先构建前端）
 - Playwright 截图/失败 trace：`test-results/playwright/`（本地产物，已加入 Git 忽略规则）
 - 视觉检查当前断言视口溢出和交互，并保存截图；与已确认参考图进行像素差分仍待参考图基线确认后执行。
+
+## 8. Windows 发布构建与验收（DEV-34–36）
+
+- 在 Windows 项目根目录运行 `uv sync --locked --group dev`，并在 `frontend/` 运行 `npm ci`。
+- `powershell -ExecutionPolicy Bypass -File scripts/build_release.ps1` 会构建前端、运行 Python 测试、从根目录 `.venv` 生成单文件 EXE 和 portable 目录，并校验 PE 格式、打包资源和 ZIP 完整性。
+- 构建后运行 `powershell -ExecutionPolicy Bypass -File scripts/smoke_release.ps1`，会隔离应用数据目录，分别两次启动单文件/Portable，检查窗口、loopback 健康接口、SQLite 数据库、重启和正常关闭，并生成 `SMOKE-RESULTS.txt`。
+- `-SkipTests` 仅用于已单独确认测试通过后的重复打包；正式候选版本应使用默认参数。
+- 构建目录为 `dist/release/`；`RELEASE-INFO.txt` 记录 Windows 版本、架构、Python/Node 构建版本、Git commit、测试与尚待执行的实机验收，`SHA256SUMS.txt` 记录发行文件哈希。
+- 在干净 Win10 和 Win11 虚拟机（无 Python、Node.js、npm、开发工具）分别运行单文件版和 portable ZIP 解压版；验证启动、下载到完成、正常关闭、重新启动后历史/设置保留，并检查日志及退出码。
+- 自动结构校验通过不代表干净环境或 Win10/Win11 实机验收通过；将这些结果附在 DEV-36 的发布记录中再勾选清单。
